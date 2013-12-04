@@ -40,6 +40,7 @@ extern int remove_path_from_gitmodules(const char *path);
 extern void stage_updated_gitmodules(struct index_state *istate);
 extern void set_diffopt_flags_from_submodule_config(struct diff_options *,
 		const char *path);
+int is_ignored_submodule(const char *path);
 extern int git_default_submodule_config(const char *var, const char *value, void *cb);
 
 struct option;

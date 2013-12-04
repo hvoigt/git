@@ -190,6 +190,16 @@ void set_diffopt_flags_from_submodule_config(struct diff_options *diffopt,
 	}
 }
 
+int is_ignored_submodule(const char *path)
+{
+	struct diff_options diffopt;
+	memset(&diffopt, 0, sizeof(diffopt));
+	set_diffopt_flags_from_submodule_config(&diffopt, path);
+	if (diffopt.flags.ignore_submodules)
+		return 1;
+	return 0;
+}
+
 /* Cheap function that only determines if we're interested in submodules at all */
 int git_default_submodule_config(const char *var, const char *value, void *cb)
 {

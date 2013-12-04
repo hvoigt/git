@@ -33,6 +33,23 @@ struct update_callback_data {
 	int add_errors;
 };
 
+static struct lock_file lock_file;
+
+static const char ignore_error[] =
+N_("The following paths are ignored by one of your .gitignore files:\n");
+static const char submodule_ignore_error[] =
+N_("The following paths are ignored submodules:\n");
+
+static int verbose, show_only, ignored_too, refresh_only;
+static int ignore_add_errors, intent_to_add, ignore_missing;
+static int warn_on_embedded_repo = 1;
+
+#define ADDREMOVE_DEFAULT 1
+static int addremove = ADDREMOVE_DEFAULT;
+static int addremove_explicit = -1; /* unspecified */
+
+static char *chmod_arg;
+
 static void chmod_pathspec(struct pathspec *pathspec, char flip)
 {
 	int i;
@@ -78,6 +95,10 @@ static void update_callback(struct diff_queue_struct *q,
 	for (i = 0; i < q->nr; i++) {
 		struct diff_filepair *p = q->queue[i];
 		const char *path = p->one->path;
+
+		if (is_ignored_submodule(path) && !ignored_too)
+			continue;
+
 		switch (fix_unmerged_status(p, data)) {
 		default:
 			die(_("unexpected diff status %c"), p->status);
@@ -111,6 +132,7 @@ int add_files_to_cache(const char *prefix,
 	data.flags = flags;
 
 	init_revisions(&rev, prefix);
+	enforce_no_complete_ignore_submodule(&rev.diffopt);
 	setup_revisions(0, NULL, &rev, NULL);
 	if (pathspec)
 		copy_pathspec(&rev.prune_data, pathspec);
@@ -265,21 +287,6 @@ static int edit_patch(int argc, const char **argv, const char *prefix)
 	return 0;
 }
 
-static struct lock_file lock_file;
-
-static const char ignore_error[] =
-N_("The following paths are ignored by one of your .gitignore files:\n");
-
-static int verbose, show_only, ignored_too, refresh_only;
-static int ignore_add_errors, intent_to_add, ignore_missing;
-static int warn_on_embedded_repo = 1;
-
-#define ADDREMOVE_DEFAULT 1
-static int addremove = ADDREMOVE_DEFAULT;
-static int addremove_explicit = -1; /* unspecified */
-
-static char *chmod_arg;
-
 static int ignore_removal_cb(const struct option *opt, const char *arg, int unset)
 {
 	/* if we are told to ignore, we are not adding removals */
@@ -384,6 +391,17 @@ static int add_files(struct dir_struct *dir, int flags)
 	return exit_status;
 }
 
+static void die_ignored_submodules(struct string_list *ignored_submodules)
+{
+	struct string_list_item *path;
+
+	fprintf(stderr, _(submodule_ignore_error));
+	for_each_string_list_item(path, ignored_submodules)
+		fprintf(stderr, "%s\n", path->string);
+	fprintf(stderr, _("Use -f if you really want to add them.\n"));
+	die(_("no files added"));
+}
+
 int cmd_add(int argc, const char **argv, const char *prefix)
 {
 	int exit_status = 0;
@@ -393,6 +411,7 @@ int cmd_add(int argc, const char **argv, const char *prefix)
 	int add_new_files;
 	int require_pathspec;
 	char *seen = NULL;
+	struct string_list ignored_submodules = STRING_LIST_INIT_NODUP;
 
 	git_config(add_config, NULL);
 
@@ -500,6 +519,7 @@ int cmd_add(int argc, const char **argv, const char *prefix)
 
 		for (i = 0; i < pathspec.nr; i++) {
 			const char *path = pathspec.items[i].match;
+			char path_copy[PATH_MAX];
 			if (pathspec.items[i].magic & PATHSPEC_EXCLUDE)
 				continue;
 			if (!seen[i] && path[0] &&
@@ -515,6 +535,9 @@ int cmd_add(int argc, const char **argv, const char *prefix)
 					die(_("pathspec '%s' did not match any files"),
 					    pathspec.items[i].original);
 			}
+			normalize_path_copy(path_copy, path);
+			if (is_ignored_submodule(path_copy))
+				string_list_insert(&ignored_submodules, path);
 		}
 		free(seen);
 	}
@@ -525,6 +548,9 @@ int cmd_add(int argc, const char **argv, const char *prefix)
 		exit_status |= renormalize_tracked_files(&pathspec, flags);
 	else
 		exit_status |= add_files_to_cache(prefix, &pathspec, flags);
+
+	if (!ignored_too && ignored_submodules.nr)
+		die_ignored_submodules(&ignored_submodules);
 
 	if (add_new_files)
 		exit_status |= add_files(&dir, flags);
