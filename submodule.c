@@ -402,6 +402,16 @@ const char *submodule_strategy_to_string(const struct submodule_update_strategy 
 	return NULL;
 }
 
+void enforce_no_complete_ignore_submodule(struct diff_options *diffopt)
+{
+	diffopt->flags.no_ignore_submodules = 1;
+	if (diffopt->flags.override_submodule_config &&
+	    diffopt->flags.ignore_submodules) {
+		diffopt->flags.ignore_submodules = 0;
+		diffopt->flags.ignore_dirty_submodules = 1;
+	}
+}
+
 void handle_ignore_submodules_arg(struct diff_options *diffopt,
 				  const char *arg)
 {
@@ -409,9 +419,11 @@ void handle_ignore_submodules_arg(struct diff_options *diffopt,
 	diffopt->flags.ignore_untracked_in_submodules = 0;
 	diffopt->flags.ignore_dirty_submodules = 0;
 
-	if (!strcmp(arg, "all"))
+	if (!strcmp(arg, "all")) {
+		if (diffopt->flags.no_ignore_submodules)
+			return;
 		diffopt->flags.ignore_submodules = 1;
-	else if (!strcmp(arg, "untracked"))
+	} else if (!strcmp(arg, "untracked"))
 		diffopt->flags.ignore_untracked_in_submodules = 1;
 	else if (!strcmp(arg, "dirty"))
 		diffopt->flags.ignore_dirty_submodules = 1;

@@ -516,6 +516,9 @@ int run_diff_index(struct rev_info *revs, int cached)
 	struct object_array_entry *ent;
 	uint64_t start = getnanotime();
 
+	if (cached)
+		enforce_no_complete_ignore_submodule(&revs->diffopt);
+
 	ent = revs->pending.objects;
 	if (diff_cache(revs, &ent->item->oid, ent->name, cached))
 		exit(128);

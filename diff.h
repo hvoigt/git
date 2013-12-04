@@ -89,6 +89,7 @@ struct diff_flags {
 	unsigned dirty_submodules:1;
 	unsigned ignore_untracked_in_submodules:1;
 	unsigned ignore_dirty_submodules:1;
+	unsigned no_ignore_submodules:1;
 	unsigned override_submodule_config:1;
 	unsigned dirstat_by_line:1;
 	unsigned funccontext:1;

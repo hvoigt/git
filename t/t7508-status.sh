@@ -1431,6 +1431,11 @@ Your branch and '\''upstream'\'' have diverged,
 and have 2 and 2 different commits each, respectively.
   (use "git pull" to merge the remote branch into yours)
 
+Changes to be committed:
+  (use "git reset HEAD <file>..." to unstage)
+
+	modified:   sm
+
 Changes not staged for commit:
   (use "git add <file>..." to update what will be committed)
   (use "git checkout -- <file>..." to discard changes in working directory)
@@ -1446,7 +1451,6 @@ Untracked files:
 	dir2/untracked
 	untracked
 
-no changes added to commit (use "git add" and/or "git commit -a")
 EOF
 	git status --ignore-submodules=all > output &&
 	test_i18ncmp expect output

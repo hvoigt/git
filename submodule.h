@@ -61,6 +61,7 @@ extern enum submodule_update_type parse_submodule_update_type(const char *value)
 extern int parse_submodule_update_strategy(const char *value,
 		struct submodule_update_strategy *dst);
 extern const char *submodule_strategy_to_string(const struct submodule_update_strategy *s);
+void enforce_no_complete_ignore_submodule(struct diff_options *diffopt);
 extern void handle_ignore_submodules_arg(struct diff_options *, const char *);
 extern void show_submodule_summary(struct diff_options *o, const char *path,
 		struct object_id *one, struct object_id *two,
