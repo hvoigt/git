@@ -23,6 +23,7 @@
 #include "hashmap.h"
 #include "notes-utils.h"
 #include "sigchain.h"
+#include "submodule.h"
 
 #define GIT_REFLOG_ACTION "GIT_REFLOG_ACTION"
 
@@ -1004,6 +1005,7 @@ void print_commit_summary(const char *prefix, const struct object_id *oid,
 	strbuf_release(&committer_ident);
 
 	init_revisions(&rev, prefix);
+	enforce_no_complete_ignore_submodule(&rev.diffopt);
 	setup_revisions(0, NULL, &rev, NULL);
 
 	rev.diff = 1;
