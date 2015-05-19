@@ -714,21 +714,29 @@ static int is_submodule_changed(const struct submodule *submodule,
 	return changed ? 1 : 0;
 }
 
-int fetch_populated_submodules(const struct argv_array *options,
-			       const char *prefix, int command_line_option,
-			       int quiet)
+static void clone_auto_submodules(struct string_list *submodule_list)
 {
-	int i, result = 0;
+	/* iterate over changed submodules and submodules that should
+	 * always be fetched. If an iterated submodule does not exist in
+	 * submodule_list and is configured to be automatically cloned
+	 * clone it...
+	 */
+}
 
-	if (read_cache() < 0)
-		die("index file corrupt");
+static void add_modules_dir(struct string_list *submodule_list,
+		struct strbuf *submod_dir)
+{
+	/* TODO: recursively iterate over .git/modules and add missing ones */
+}
 
-	calculate_changed_submodule_paths();
+static void create_submodule_list(struct string_list *submodule_list)
+{
+	int i;
+	struct strbuf submod_dir = STRBUF_INIT;
 
 	for (i = 0; i < active_nr; i++) {
 		const struct cache_entry *ce = active_cache[i];
 		const struct submodule *submodule;
-		const char *default_argv;
 
 		if (!S_ISGITLINK(ce->ce_mode))
 			continue;
@@ -737,11 +745,39 @@ int fetch_populated_submodules(const struct argv_array *options,
 		if (!submodule)
 			submodule = submodule_from_name(null_sha1, ce->name);
 
+		if (submodule)
+			string_list_insert(submodule_list, submodule->name);
+	}
+
+	strbuf_addf(&submod_dir, "%s/modules", get_git_dir());
+	add_modules_dir(submodule_list, &submod_dir);
+}
+
+int fetch_populated_submodules(const struct argv_array *options,
+			       const char *prefix, int command_line_option,
+			       int quiet)
+{
+	int i, result = 0;
+	struct string_list submodule_list = STRING_LIST_INIT_DUP;
+
+	if (read_cache() < 0)
+		die("index file corrupt");
+
+	calculate_changed_submodule_paths();
+	create_submodule_list(&submodule_list);
+	clone_auto_submodules(&submodule_list);
+
+	for (i = 0; i < submodule_list.nr; i++) {
+		const struct submodule *submodule;
+		const char *default_argv, *name = submodule_list.items[i].string;
+
+		submodule = submodule_from_name(null_sha1, name);
+
 		switch (get_fetch_recurse_config(submodule, command_line_option)) {
 		default:
 		case RECURSE_SUBMODULES_DEFAULT:
 		case RECURSE_SUBMODULES_ON_DEMAND:
-			if (!is_submodule_changed(submodule, ce->name))
+			if (!is_submodule_changed(submodule, name))
 				continue;
 			default_argv = "on-demand";
 			break;
@@ -752,16 +788,10 @@ int fetch_populated_submodules(const struct argv_array *options,
 			continue;
 		}
 
-		if (do_fetch_submodule(prefix, ce->name, options, default_argv, quiet))
+		if (do_fetch_submodule(prefix, name, options, default_argv, quiet))
 			result = 1;
 	}
-	/*
-	 * TODO: iterate over changed submodules instead of cache and
-	 * search inside .git/modules in case submodule is not in the
-	 * worktree at the moment. Simplify do_fetch_submodule() so we
-	 * can reuse it to fetch from .git/modules only submodules as
-	 * well.
-	 */
+	string_list_clear(&submodule_list, 0);
 	string_list_clear(&changed_submodule_names, 1);
 	string_list_clear(&changed_submodule_paths, 1);
 	return result;
