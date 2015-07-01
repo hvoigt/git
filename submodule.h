@@ -13,6 +13,13 @@ enum {
 	RECURSE_SUBMODULES_ON = 2
 };
 
+enum {
+	ODB_SUBMODULE_MISSING_REF = -1,
+	ODB_SUBMODULE_OK = 0,
+	ODB_SUBMODULE_MISSING = 1,
+	ODB_SUBMODULE_BADPATH = 2,
+};
+
 int is_staging_gitmodules_ok(void);
 int update_path_in_gitmodules(const char *oldpath, const char *newpath);
 int remove_path_from_gitmodules(const char *path);
@@ -41,5 +48,6 @@ int find_unpushed_submodules(unsigned char new_sha1[20], const char *remotes_nam
 		struct string_list *needs_pushing);
 int push_unpushed_submodules(unsigned char new_sha1[20], const char *remotes_name);
 void connect_work_tree_and_git_dir(const char *work_tree, const char *git_dir);
+int add_submodule_odb_from_tree(const char *path, int len, const unsigned char *toplevel_sha1, const unsigned char *sha1);
 
 #endif

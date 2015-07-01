@@ -608,6 +608,10 @@ int cmd_rev_parse(int argc, const char **argv, const char *prefix)
 				flags |= GET_SHA1_QUIETLY;
 				continue;
 			}
+			if (!strcmp(arg, "--recurse-submodules")) {
+				flags |= GET_SHA1_FOLLOW_GITLINKS;
+				continue;
+			}
 			if (!strcmp(arg, "--short") ||
 			    starts_with(arg, "--short=")) {
 				filter &= ~(DO_FLAGS|DO_NOREV);

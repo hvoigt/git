@@ -1437,6 +1437,9 @@ static int get_sha1_with_context_1(const char *name,
 				ret = get_tree_entry_follow_symlinks(tree_sha1,
 					filename, sha1, &oc->symlink_path,
 					&oc->mode);
+			} else if (flags & GET_SHA1_FOLLOW_GITLINKS) {
+				ret = get_tree_entry_recurse_submodules(tree_sha1,
+					filename, sha1, &oc->mode);
 			} else {
 				ret = get_tree_entry(tree_sha1, filename,
 						     sha1, &oc->mode);

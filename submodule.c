@@ -159,6 +159,47 @@ done:
 	return ret;
 }
 
+/* Add the submodule's database to alt_odb_list if it exists. Optionally
+ * lookup the commit at sha1 to determine reachability.
+ */
+int add_submodule_odb_from_tree(const char *path, int len, const unsigned char *toplevel_sha1, const unsigned char *sha1)
+{
+	int retval=0;
+	struct strbuf sm_name = STRBUF_INIT;
+
+	strbuf_addstr(&sm_name, path);
+
+	if (!len)
+		return ODB_SUBMODULE_BADPATH;
+
+	if (toplevel_sha1)
+	{
+		struct strbuf gitdir = STRBUF_INIT;
+		const struct submodule *sm;
+		if (path[len-1]=='/') --len;
+		strbuf_add(&gitdir, path, len);
+
+		sm=submodule_from_path(toplevel_sha1, gitdir.buf);
+		if (!sm)
+			retval = ODB_SUBMODULE_MISSING;
+		else {
+			strbuf_reset(&sm_name);
+			strbuf_addstr(&sm_name, sm->name);
+		}
+	}
+
+	if (retval)
+		(void)0;/* all done */
+	else if (add_submodule_odb(sm_name.buf))
+		retval = ODB_SUBMODULE_MISSING;
+	else if ( sha1 && !lookup_commit_reference(sha1))
+		retval = ODB_SUBMODULE_MISSING_REF;
+	else
+		retval = ODB_SUBMODULE_OK;
+
+	return retval;
+}
+
 void set_diffopt_flags_from_submodule_config(struct diff_options *diffopt,
 					     const char *path)
 {
