@@ -12,6 +12,8 @@
 #include "mergesort.h"
 #include "argv-array.h"
 
+static struct trace_key heiko = TRACE_KEY_INIT(HEIKO);
+
 enum map_direction { FROM_SRC, FROM_DST };
 
 struct counted_string {
@@ -1473,14 +1475,18 @@ static void set_merge(struct branch *ret)
 	}
 
 	remote = remote_get(ret->remote_name);
+	trace_printf_key(&heiko, "remotet");
 
 	ret->merge = xcalloc(ret->merge_nr, sizeof(*ret->merge));
 	for (i = 0; i < ret->merge_nr; i++) {
+		trace_printf_key(&heiko, "merge: %i, remote_name: %s, merge_name: %s",
+				i, ret->remote_name, ret->merge_name[i]);
 		ret->merge[i] = xcalloc(1, sizeof(**ret->merge));
 		ret->merge[i]->src = xstrdup(ret->merge_name[i]);
 		if (!remote_find_tracking(remote, ret->merge[i]) ||
 		    strcmp(ret->remote_name, "."))
 			continue;
+		trace_printf_key(&heiko, "merge_name: %s", ret->merge_name[i]);
 		if (dwim_ref(ret->merge_name[i], strlen(ret->merge_name[i]),
 			     &oid, &ref) == 1)
 			ret->merge[i]->dst = ref;
@@ -1491,6 +1497,7 @@ static void set_merge(struct branch *ret)
 
 struct branch *branch_get(const char *name)
 {
+	trace_printf_key(&heiko, "test trace");
 	struct branch *ret;
 
 	read_config();
