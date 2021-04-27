@@ -1097,6 +1097,8 @@ static int merge_submodule(struct merge_options *opt,
 	struct object_array merges;
 	struct strbuf sb = STRBUF_INIT;
 
+	struct merge_options subopt = *opt;
+
 	int i;
 	int search = !opt->priv->call_depth;
 
@@ -1111,17 +1113,19 @@ static int merge_submodule(struct merge_options *opt,
 	if (is_null_oid(b))
 		return 0;
 
-	if (add_submodule_odb(path)) {
+	struct repository subrepo;
+	if (get_submodule_repo(path, &subrepo)) {
 		path_msg(opt, path, 0,
 			 _("Failed to merge submodule %s (not checked out)"),
 			 path);
 		return 0;
 	}
+	subopt->repo = &subrepo;
 
-	if (!(commit_o = lookup_commit_reference(opt->repo, o)) ||
-	    !(commit_a = lookup_commit_reference(opt->repo, a)) ||
-	    !(commit_b = lookup_commit_reference(opt->repo, b))) {
-		path_msg(opt, path, 0,
+	if (!(commit_o = lookup_commit_reference(subopt->repo, o)) ||
+	    !(commit_a = lookup_commit_reference(subopt->repo, a)) ||
+	    !(commit_b = lookup_commit_reference(subopt->repo, b))) {
+		path_msg(subopt, path, 0,
 			 _("Failed to merge submodule %s (commits not present)"),
 			 path);
 		return 0;
@@ -1130,7 +1134,7 @@ static int merge_submodule(struct merge_options *opt,
 	/* check whether both changes are forward */
 	if (!in_merge_bases(commit_o, commit_a) ||
 	    !in_merge_bases(commit_o, commit_b)) {
-		path_msg(opt, path, 0,
+		path_msg(subopt, path, 0,
 			 _("Failed to merge submodule %s "
 			   "(commits don't follow merge-base)"),
 			 path);
@@ -1140,14 +1144,14 @@ static int merge_submodule(struct merge_options *opt,
 	/* Case #1: a is contained in b or vice versa */
 	if (in_merge_bases(commit_a, commit_b)) {
 		oidcpy(result, b);
-		path_msg(opt, path, 1,
+		path_msg(subopt, path, 1,
 			 _("Note: Fast-forwarding submodule %s to %s"),
 			 path, oid_to_hex(b));
 		return 1;
 	}
 	if (in_merge_bases(commit_b, commit_a)) {
 		oidcpy(result, a);
-		path_msg(opt, path, 1,
+		path_msg(subopt, path, 1,
 			 _("Note: Fast-forwarding submodule %s to %s"),
 			 path, oid_to_hex(a));
 		return 1;
@@ -1165,21 +1169,21 @@ static int merge_submodule(struct merge_options *opt,
 		return 0;
 
 	/* find commit which merges them */
-	parent_count = find_first_merges(opt->repo, path, commit_a, commit_b,
+	parent_count = find_first_merges(subopt->repo, path, commit_a, commit_b,
 					 &merges);
 	switch (parent_count) {
 	case 0:
-		path_msg(opt, path, 0, _("Failed to merge submodule %s"), path);
+		path_msg(subopt, path, 0, _("Failed to merge submodule %s"), path);
 		break;
 
 	case 1:
 		format_commit(&sb, 4,
 			      (struct commit *)merges.objects[0].item);
-		path_msg(opt, path, 0,
+		path_msg(subopt, path, 0,
 			 _("Failed to merge submodule %s, but a possible merge "
 			   "resolution exists:\n%s\n"),
 			 path, sb.buf);
-		path_msg(opt, path, 1,
+		path_msg(subopt, path, 1,
 			 _("If this is correct simply add it to the index "
 			   "for example\n"
 			   "by using:\n\n"
@@ -1192,7 +1196,7 @@ static int merge_submodule(struct merge_options *opt,
 		for (i = 0; i < merges.nr; i++)
 			format_commit(&sb, 4,
 				      (struct commit *)merges.objects[i].item);
-		path_msg(opt, path, 0,
+		path_msg(subopt, path, 0,
 			 _("Failed to merge submodule %s, but multiple "
 			   "possible merges exist:\n%s"), path, sb.buf);
 		strbuf_release(&sb);
