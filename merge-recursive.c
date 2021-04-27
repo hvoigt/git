@@ -1202,23 +1202,23 @@ static int merge_submodule(struct merge_options *opt,
 		return 0;
 
 	struct repository subrepo;
-	if (get_submodule_repo(path, &subrepo)) {
-		output(subopt, 1, _("Failed to merge submodule %s (not checked out)"), path);
+	if (get_submodule_repo(&subrepo, path)) {
+		output(opt, 1, _("Failed to merge submodule %s (not checked out)"), path);
 		return 0;
 	}
-	subopt->repo = &subrepo;
+	subopt.repo = &subrepo;
 
-	if (!(commit_base = lookup_commit_reference(subopt->repo, base)) ||
-	    !(commit_a = lookup_commit_reference(subopt->repo, a)) ||
-	    !(commit_b = lookup_commit_reference(subopt->repo, b))) {
-		output(subopt, 1, _("Failed to merge submodule %s (commits not present)"), path);
+	if (!(commit_base = lookup_commit_reference(subopt.repo, base)) ||
+	    !(commit_a = lookup_commit_reference(subopt.repo, a)) ||
+	    !(commit_b = lookup_commit_reference(subopt.repo, b))) {
+		output(&subopt, 1, _("Failed to merge submodule %s (commits not present)"), path);
 		return 0;
 	}
 
 	/* check whether both changes are forward */
 	if (!in_merge_bases(commit_base, commit_a) ||
 	    !in_merge_bases(commit_base, commit_b)) {
-		output(subopt, 1, _("Failed to merge submodule %s (commits don't follow merge-base)"), path);
+		output(&subopt, 1, _("Failed to merge submodule %s (commits don't follow merge-base)"), path);
 		return 0;
 	}
 
@@ -1226,10 +1226,10 @@ static int merge_submodule(struct merge_options *opt,
 	if (in_merge_bases(commit_a, commit_b)) {
 		oidcpy(result, b);
 		if (show(opt, 3)) {
-			output(subopt, 3, _("Fast-forwarding submodule %s to the following commit:"), path);
-			output_commit_title(subopt, commit_b);
-		} else if (show(subopt, 2))
-			output(subopt, 2, _("Fast-forwarding submodule %s"), path);
+			output(&subopt, 3, _("Fast-forwarding submodule %s to the following commit:"), path);
+			output_commit_title(&subopt, commit_b);
+		} else if (show(&subopt, 2))
+			output(&subopt, 2, _("Fast-forwarding submodule %s"), path);
 		else
 			; /* no output */
 
@@ -1237,11 +1237,11 @@ static int merge_submodule(struct merge_options *opt,
 	}
 	if (in_merge_bases(commit_b, commit_a)) {
 		oidcpy(result, a);
-		if (show(subopt, 3)) {
-			output(subopt, 3, _("Fast-forwarding submodule %s to the following commit:"), path);
-			output_commit_title(subopt, commit_a);
-		} else if (show(subopt, 2))
-			output(subopt, 2, _("Fast-forwarding submodule %s"), path);
+		if (show(&subopt, 3)) {
+			output(&subopt, 3, _("Fast-forwarding submodule %s to the following commit:"), path);
+			output_commit_title(&subopt, commit_a);
+		} else if (show(&subopt, 2))
+			output(&subopt, 2, _("Fast-forwarding submodule %s"), path);
 		else
 			; /* no output */
 
@@ -1260,18 +1260,18 @@ static int merge_submodule(struct merge_options *opt,
 		return 0;
 
 	/* find commit which merges them */
-	parent_count = find_first_merges(subrepo, &merges, path,
+	parent_count = find_first_merges(subopt.repo, &merges, path,
 					 commit_a, commit_b);
 	switch (parent_count) {
 	case 0:
-		output(subopt, 1, _("Failed to merge submodule %s (merge following commits not found)"), path);
+		output(&subopt, 1, _("Failed to merge submodule %s (merge following commits not found)"), path);
 		break;
 
 	case 1:
-		output(subopt, 1, _("Failed to merge submodule %s (not fast-forward)"), path);
-		output(subopt, 2, _("Found a possible merge resolution for the submodule:\n"));
+		output(&subopt, 1, _("Failed to merge submodule %s (not fast-forward)"), path);
+		output(&subopt, 2, _("Found a possible merge resolution for the submodule:\n"));
 		print_commit((struct commit *) merges.objects[0].item);
-		output(subopt, 2, _(
+		output(&subopt, 2, _(
 		       "If this is correct simply add it to the index "
 		       "for example\n"
 		       "by using:\n\n"
@@ -1281,7 +1281,7 @@ static int merge_submodule(struct merge_options *opt,
 		break;
 
 	default:
-		output(subopt, 1, _("Failed to merge submodule %s (multiple merges found)"), path);
+		output(&subopt, 1, _("Failed to merge submodule %s (multiple merges found)"), path);
 		for (i = 0; i < merges.nr; i++)
 			print_commit((struct commit *) merges.objects[i].item);
 	}

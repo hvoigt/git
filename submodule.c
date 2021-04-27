@@ -167,17 +167,17 @@ void stage_updated_gitmodules(struct index_state *istate)
 
 int get_submodule_repo(struct repository *subrepo, const char *path)
 {
-	struct submodule *submodule;
+	const struct submodule *submodule;
 
 	submodule = submodule_from_path(the_repository, &null_oid, path);
 	if (!submodule || !submodule->name) {
 		return 1;
 	}
 
-	if (!is_submodule_active(the_repository, path)
-			return 0;
+	if (!is_submodule_active(the_repository, path))
+		return 0;
 
-	return repo_submodule_init(&subrepo, the_repository, submodule));
+	return repo_submodule_init(subrepo, the_repository, submodule);
 }
 
 void set_diffopt_flags_from_submodule_config(struct diff_options *diffopt,
