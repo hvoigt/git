@@ -165,23 +165,19 @@ void stage_updated_gitmodules(struct index_state *istate)
 		die(_("staging updated .gitmodules failed"));
 }
 
-/* TODO: remove this function, use repo_submodule_init instead. */
-int add_submodule_odb(const char *path)
+int get_submodule_repo(struct repository *subrepo, const char *path)
 {
-	struct strbuf objects_directory = STRBUF_INIT;
-	int ret = 0;
+	struct submodule *submodule;
 
-	ret = strbuf_git_path_submodule(&objects_directory, path, "objects/");
-	if (ret)
-		goto done;
-	if (!is_directory(objects_directory.buf)) {
-		ret = -1;
-		goto done;
+	submodule = submodule_from_path(the_repository, &null_oid, path);
+	if (!submodule || !submodule->name) {
+		return 1;
 	}
-	add_to_alternates_memory(objects_directory.buf);
-done:
-	strbuf_release(&objects_directory);
-	return ret;
+
+	if (!is_submodule_active(the_repository, path)
+			return 0;
+
+	return repo_submodule_init(&subrepo, the_repository, submodule));
 }
 
 void set_diffopt_flags_from_submodule_config(struct diff_options *diffopt,
@@ -926,19 +922,13 @@ static int submodule_has_commits(struct repository *r,
 				 const char *path,
 				 struct oid_array *commits)
 {
-	struct has_commit_data has_commit = { r, 1, path };
+	struct has_commit_data has_commit = { NULL, 1, path };
 
-	/*
-	 * Perform a cheap, but incorrect check for the existence of 'commits'.
-	 * This is done by adding the submodule's object store to the in-core
-	 * object store, and then querying for each commit's existence.  If we
-	 * do not have the commit object anywhere, there is no chance we have
-	 * it in the object store of the correct submodule and have it
-	 * reachable from a ref, so we can fail early without spawning rev-list
-	 * which is expensive.
-	 */
-	if (add_submodule_odb(path))
+	struct repository subrepo;
+	if (get_submodule_repo(&subrepo, path))
 		return 0;
+
+	has_commit.repo = &subrepo;
 
 	oid_array_for_each_unique(commits, check_has_commit, &has_commit);
 

@@ -1952,9 +1952,8 @@ struct ref_store *get_submodule_ref_store(const char *submodule)
 	if (submodule_to_gitdir(&submodule_sb, submodule))
 		goto done;
 
-	/* assume that add_submodule_odb() has been called */
 	refs = ref_store_init(submodule_sb.buf,
-			      REF_STORE_READ | REF_STORE_ODB);
+			      REF_STORE_READ);
 	register_ref_store_map(&submodule_ref_stores, "submodule",
 			       refs, submodule);
 
