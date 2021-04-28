@@ -170,7 +170,7 @@ void stage_updated_gitmodules(struct index_state *istate)
 }
 
 /* TODO: remove this function, use repo_submodule_init instead. */
-int add_submodule_odb(const char *path)
+static int add_submodule_odb(const char *path)
 {
 	struct strbuf objects_directory = STRBUF_INIT;
 	int ret = 0;
@@ -1023,6 +1023,11 @@ static int submodule_needs_pushing(struct repository *r,
 		 */
 		return 0;
 
+	/*
+	 * NEEDSWORK: We keep this here because the following code still
+	 * depends on the submodule objects available in our object
+	 * database.
+	 */
 	if (add_submodule_odb(path))
 		return 0;
 
