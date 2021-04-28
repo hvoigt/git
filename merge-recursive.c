@@ -1125,7 +1125,7 @@ static int find_first_merges(struct repository *repo,
 		die("revision walk setup failed");
 	while ((commit = get_revision(&revs)) != NULL) {
 		struct object *o = &(commit->object);
-		if (in_merge_bases(b, commit))
+		if (repo_in_merge_bases(repo, b, commit))
 			add_object_array(o, NULL, &merges);
 	}
 	reset_revision_walk();
@@ -1140,7 +1140,7 @@ static int find_first_merges(struct repository *repo,
 		contains_another = 0;
 		for (j = 0; j < merges.nr; j++) {
 			struct commit *m2 = (struct commit *) merges.objects[j].item;
-			if (i != j && in_merge_bases(m2, m1)) {
+			if (i != j && repo_in_merge_bases(repo, m2, m1)) {
 				contains_another = 1;
 				break;
 			}
@@ -1214,14 +1214,14 @@ static int merge_submodule(struct merge_options *opt,
 	}
 
 	/* check whether both changes are forward */
-	if (!in_merge_bases(commit_base, commit_a) ||
-	    !in_merge_bases(commit_base, commit_b)) {
+	if (!repo_in_merge_bases(subopt.repo, commit_base, commit_a) ||
+	    !repo_in_merge_bases(subopt.repo, commit_base, commit_b)) {
 		output(&subopt, 1, _("Failed to merge submodule %s (commits don't follow merge-base)"), path);
 		return 0;
 	}
 
 	/* Case #1: a is contained in b or vice versa */
-	if (in_merge_bases(commit_a, commit_b)) {
+	if (repo_in_merge_bases(subopt.repo, commit_a, commit_b)) {
 		oidcpy(result, b);
 		if (show(opt, 3)) {
 			output(&subopt, 3, _("Fast-forwarding submodule %s to the following commit:"), path);
@@ -1233,7 +1233,7 @@ static int merge_submodule(struct merge_options *opt,
 
 		return 1;
 	}
-	if (in_merge_bases(commit_b, commit_a)) {
+	if (repo_in_merge_bases(subopt.repo, commit_b, commit_a)) {
 		oidcpy(result, a);
 		if (show(&subopt, 3)) {
 			output(&subopt, 3, _("Fast-forwarding submodule %s to the following commit:"), path);
