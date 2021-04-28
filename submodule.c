@@ -96,6 +96,14 @@ int is_staging_gitmodules_ok(struct index_state *istate)
 static int for_each_remote_ref_submodule(const char *submodule,
 					 each_ref_fn fn, void *cb_data)
 {
+	/*
+	 * NEEDSWORK: We need this here because the reference iteration
+	 * machinery depends on the submodule objects to be available in
+	 * our object database.
+	 */
+	if (add_submodule_odb(submodule))
+		return 0;
+
 	return refs_for_each_remote_ref(get_submodule_ref_store(submodule),
 					fn, cb_data);
 }
@@ -968,19 +976,21 @@ static int submodule_has_commits(struct repository *r,
 				 const char *path,
 				 struct oid_array *commits)
 {
-	struct has_commit_data has_commit = { r, 1, path };
+	struct has_commit_data has_commit = { NULL, 1, path };
 
 	/*
-	 * Perform a cheap, but incorrect check for the existence of 'commits'.
-	 * This is done by adding the submodule's object store to the in-core
-	 * object store, and then querying for each commit's existence.  If we
-	 * do not have the commit object anywhere, there is no chance we have
-	 * it in the object store of the correct submodule and have it
-	 * reachable from a ref, so we can fail early without spawning rev-list
-	 * which is expensive.
+	 * Perform a cheap, check for the existence of 'commits'. This
+	 * is done by reading from the submodule's object store, and
+	 * then querying for each commit's existence. If we do not have
+	 * the commit object anywhere, there is no chance it is
+	 * reachable from a ref, so we can fail early without spawning
+	 * rev-list which is expensive.
 	 */
-	if (add_submodule_odb(path))
+	struct repository subrepo;
+	if (get_submodule_repo(&subrepo, path))
 		return 0;
+
+	has_commit.repo = &subrepo;
 
 	oid_array_for_each_unique(commits, check_has_commit, &has_commit);
 
@@ -1027,6 +1037,14 @@ static int submodule_needs_pushing(struct repository *r,
 		 * maintainer integrating work from other people. In
 		 * both cases it should be safe to skip this check.
 		 */
+		return 0;
+
+	/*
+	 * NEEDSWORK: We keep this here because the following code still
+	 * depends on the submodule objects available in our object
+	 * database.
+	 */
+	if (add_submodule_odb(path))
 		return 0;
 
 	if (for_each_remote_ref_submodule(path, has_remote, NULL) > 0) {
