@@ -28,6 +28,10 @@ static int initialized_fetch_ref_tips;
 static struct oid_array ref_tips_before_fetch;
 static struct oid_array ref_tips_after_fetch;
 
+static struct repository *get_submodule_repo_for(struct repository *r,
+						 const struct submodule *sub);
+static const struct submodule *get_non_gitmodules_submodule(const char *path);
+
 /*
  * Check if the .gitmodules file is unmerged. Parsing of the .gitmodules file
  * will be disabled because we can't guess what might be configured in
@@ -165,19 +169,61 @@ void stage_updated_gitmodules(struct index_state *istate)
 		die(_("staging updated .gitmodules failed"));
 }
 
+/* TODO: remove this function, use repo_submodule_init instead. */
+int add_submodule_odb(const char *path)
+{
+	struct strbuf objects_directory = STRBUF_INIT;
+	int ret = 0;
+
+	ret = strbuf_git_path_submodule(&objects_directory, path, "objects/");
+	if (ret)
+		goto done;
+	if (!is_directory(objects_directory.buf)) {
+		ret = -1;
+		goto done;
+	}
+	add_to_alternates_memory(objects_directory.buf);
+done:
+	strbuf_release(&objects_directory);
+	return ret;
+}
+
 int get_submodule_repo(struct repository *subrepo, const char *path)
 {
 	const struct submodule *submodule;
+	const struct repository *temp;
+	int free_submodule = 0, ret = 0;
 
 	submodule = submodule_from_path(the_repository, &null_oid, path);
-	if (!submodule || !submodule->name) {
-		return 1;
+	if (!submodule) {
+		/*
+		 * No entry in .gitmodules? Technically not a submodule,
+		 * but historically we supported repositories that happen to be
+		 * in-place where a gitlink is. Keep supporting them.
+		 */
+		submodule = get_non_gitmodules_submodule(path);
+		if (!submodule) {
+			ret = -1;
+			goto out;
+		}
+
+		free_submodule = 1;
 	}
 
-	if (!is_submodule_active(the_repository, path))
-		return 0;
+	temp = get_submodule_repo_for(the_repository, submodule);
+	if (!temp) {
+		ret = 1;
+		goto out;
+	}
 
-	return repo_submodule_init(subrepo, the_repository, submodule);
+	*subrepo = *temp;
+
+	free((void *)temp);
+out:
+	if (free_submodule)
+		free((void *)submodule);
+
+	return ret;
 }
 
 void set_diffopt_flags_from_submodule_config(struct diff_options *diffopt,
@@ -975,6 +1021,9 @@ static int submodule_needs_pushing(struct repository *r,
 		 * maintainer integrating work from other people. In
 		 * both cases it should be safe to skip this check.
 		 */
+		return 0;
+
+	if (add_submodule_odb(path))
 		return 0;
 
 	if (for_each_remote_ref_submodule(path, has_remote, NULL) > 0) {
