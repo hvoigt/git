@@ -1181,6 +1181,7 @@ static int merge_submodule(struct merge_options *opt,
 	struct object_array merges;
 
 	struct merge_options subopt = *opt;
+	struct repository subrepo;
 
 	int i;
 	int search = !opt->priv->call_depth;
@@ -1201,7 +1202,6 @@ static int merge_submodule(struct merge_options *opt,
 	if (is_null_oid(b))
 		return 0;
 
-	struct repository subrepo;
 	if (get_submodule_repo(&subrepo, path)) {
 		output(opt, 1, _("Failed to merge submodule %s (not checked out)"), path);
 		return 0;
