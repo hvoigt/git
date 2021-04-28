@@ -28,6 +28,10 @@ static int initialized_fetch_ref_tips;
 static struct oid_array ref_tips_before_fetch;
 static struct oid_array ref_tips_after_fetch;
 
+static struct repository *get_submodule_repo_for(struct repository *r,
+						 const struct submodule *sub);
+static const struct submodule *get_non_gitmodules_submodule(const char *path);
+
 /*
  * Check if the .gitmodules file is unmerged. Parsing of the .gitmodules file
  * will be disabled because we can't guess what might be configured in
@@ -181,6 +185,44 @@ int add_submodule_odb(const char *path)
 	add_to_alternates_memory(objects_directory.buf);
 done:
 	strbuf_release(&objects_directory);
+	return ret;
+}
+
+int get_submodule_repo(struct repository *subrepo, const char *path)
+{
+	const struct submodule *submodule;
+	const struct repository *temp;
+	int free_submodule = 0, ret = 0;
+
+	submodule = submodule_from_path(the_repository, &null_oid, path);
+	if (!submodule) {
+		/*
+		 * No entry in .gitmodules? Technically not a submodule,
+		 * but historically we supported repositories that happen to be
+		 * in-place where a gitlink is. Keep supporting them.
+		 */
+		submodule = get_non_gitmodules_submodule(path);
+		if (!submodule) {
+			ret = -1;
+			goto out;
+		}
+
+		free_submodule = 1;
+	}
+
+	temp = get_submodule_repo_for(the_repository, submodule);
+	if (!temp) {
+		ret = 1;
+		goto out;
+	}
+
+	*subrepo = *temp;
+
+	free((void *)temp);
+out:
+	if (free_submodule)
+		free((void *)submodule);
+
 	return ret;
 }
 

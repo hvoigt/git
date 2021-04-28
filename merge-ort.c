@@ -1047,6 +1047,16 @@ static int find_first_merges(struct repository *repo,
 		  oid_to_hex(&a->object.oid));
 	repo_init_revisions(repo, &revs, NULL);
 	rev_opts.submodule = path;
+
+	/*
+	 * NEEDSWORK: We need this here because the revision iteration
+	 * machinery uses the reference iteration machinery internally
+	 * and that depends on the submodule objects available in our
+	 * object database.
+	 */
+	if (add_submodule_odb(path))
+		return 0;
+
 	/* FIXME: can't handle linked worktrees in submodules yet */
 	revs.single_worktree = path != NULL;
 	setup_revisions(ARRAY_SIZE(rev_args)-1, rev_args, &revs, &rev_opts);
@@ -1098,6 +1108,7 @@ static int merge_submodule(struct merge_options *opt,
 	struct strbuf sb = STRBUF_INIT;
 
 	struct merge_options subopt = *opt;
+	struct repository subrepo;
 
 	int i;
 	int search = !opt->priv->call_depth;
@@ -1113,12 +1124,13 @@ static int merge_submodule(struct merge_options *opt,
 	if (is_null_oid(b))
 		return 0;
 
-	if (add_submodule_odb(path)) {
+	if (get_submodule_repo(&subrepo, path)) {
 		path_msg(opt, path, 0,
 			 _("Failed to merge submodule %s (not checked out)"),
 			 path);
 		return 0;
 	}
+	subopt.repo = &subrepo;
 
 	if (!(commit_o = lookup_commit_reference(subopt.repo, o)) ||
 	    !(commit_a = lookup_commit_reference(subopt.repo, a)) ||
