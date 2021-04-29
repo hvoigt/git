@@ -97,6 +97,7 @@ int submodule_uses_gitfile(const char *path);
 #define SUBMODULE_REMOVAL_IGNORE_IGNORED_UNTRACKED (1<<2)
 int bad_to_remove_submodule(const char *path, unsigned flags);
 
+int add_submodule_odb(const char *path);
 int get_submodule_repo(struct repository *subrepo, const char *path);
 
 /*

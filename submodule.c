@@ -96,6 +96,14 @@ int is_staging_gitmodules_ok(struct index_state *istate)
 static int for_each_remote_ref_submodule(const char *submodule,
 					 each_ref_fn fn, void *cb_data)
 {
+	/*
+	 * NEEDSWORK: We need this here because the reference iteration
+	 * machinery depends on the submodule objects to be available in
+	 * our object database.
+	 */
+	if (add_submodule_odb(submodule))
+		return 0;
+
 	return refs_for_each_remote_ref(get_submodule_ref_store(submodule),
 					fn, cb_data);
 }
@@ -170,7 +178,7 @@ void stage_updated_gitmodules(struct index_state *istate)
 }
 
 /* TODO: remove this function, use repo_submodule_init instead. */
-static int add_submodule_odb(const char *path)
+int add_submodule_odb(const char *path)
 {
 	struct strbuf objects_directory = STRBUF_INIT;
 	int ret = 0;
