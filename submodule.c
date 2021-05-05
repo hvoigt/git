@@ -978,6 +978,14 @@ static int submodule_has_commits(struct repository *r,
 {
 	struct has_commit_data has_commit = { NULL, 1, path };
 
+	/*
+	 * Perform a cheap, check for the existence of 'commits'. This
+	 * is done by reading from the submodule's object store, and
+	 * then querying for each commit's existence. If we do not have
+	 * the commit object anywhere, there is no chance it is
+	 * reachable from a ref, so we can fail early without spawning
+	 * rev-list which is expensive.
+	 */
 	struct repository subrepo;
 	if (get_submodule_repo(&subrepo, path))
 		return 0;
