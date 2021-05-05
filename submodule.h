@@ -98,6 +98,7 @@ int submodule_uses_gitfile(const char *path);
 int bad_to_remove_submodule(const char *path, unsigned flags);
 
 int add_submodule_odb(const char *path);
+int get_submodule_repo(struct repository *subrepo, const char *path);
 
 /*
  * Checks if there are submodule changes in a..b. If a is the null OID,
