@@ -136,7 +136,7 @@ static enum commit_msg_cleanup_mode cleanup_mode;
 static const char *cleanup_arg;
 
 static enum commit_whence whence;
-static int use_editor = 1, include_status = 1;
+static int use_editor = 1, include_status = 1, recommit = 0;
 static int have_option_m;
 static struct strbuf message = STRBUF_INIT;
 
@@ -1088,22 +1088,33 @@ static int prepare_to_commit(const char *index_file, const char *prefix,
 			    git_path_commit_editmsg(), hook_arg1, hook_arg2, NULL))
 		return 0;
 
-	if (use_editor) {
-		struct strvec env = STRVEC_INIT;
+	int retry = 1;
+	while (retry) {
+		retry = 0;
 
-		strvec_pushf(&env, "GIT_INDEX_FILE=%s", index_file);
-		if (launch_editor(git_path_commit_editmsg(), NULL, env.v)) {
-			fprintf(stderr,
-			_("Please supply the message using either -m or -F option.\n"));
-			exit(1);
+		if (use_editor) {
+			struct strvec env = STRVEC_INIT;
+
+			strvec_pushf(&env, "GIT_INDEX_FILE=%s", index_file);
+			if (launch_editor(git_path_commit_editmsg(), NULL, env.v)) {
+				fprintf(stderr,
+				_("Please supply the message using either -m or -F option.\n"));
+				exit(1);
+			}
+			strvec_clear(&env);
 		}
-		strvec_clear(&env);
-	}
 
-	if (!no_verify &&
-	    run_commit_hook(use_editor, index_file, NULL, "commit-msg",
-			    git_path_commit_editmsg(), NULL)) {
-		return 0;
+		if (!no_verify &&
+		    run_commit_hook(use_editor, index_file, NULL, "commit-msg",
+				    git_path_commit_editmsg(), NULL)) {
+
+			if (recommit) {
+				retry = 1;
+				continue;
+			}
+
+			return 0;
+		}
 	}
 
 	return 1;
@@ -1617,6 +1628,10 @@ static int git_commit_config(const char *k, const char *v, void *cb)
 	if (!strcmp(k, "commit.verbose")) {
 		int is_bool;
 		config_commit_verbose = git_config_bool_or_int(k, v, &is_bool);
+		return 0;
+	}
+	if (!strcmp(k, "commit.recommit")) {
+		recommit = git_config_bool(k, v);
 		return 0;
 	}
 
