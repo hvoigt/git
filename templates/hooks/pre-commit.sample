@@ -18,6 +18,9 @@ fi
 # If you want to allow non-ASCII filenames set this variable to true.
 allownonascii=$(git config --type=bool hooks.allownonascii)
 
+# If you want to avoid commits to protected branches, set this variable to true.
+enableprotectedbranches=$(git config --type=bool hooks.enableprotectedbranches)
+
 # Redirect output to stderr.
 exec 1>&2
 
@@ -43,6 +46,22 @@ If you know what you are doing you can disable this check using:
   git config hooks.allownonascii true
 EOF
 	exit 1
+fi
+
+ensureNotOnProtectedBranch() {
+  for protected in 'main' 'master' 'release'
+  do
+    if [[ $(git symbolic-ref HEAD) == "refs/heads/$protected" ]]
+    then
+      echo "You cannot commit to the '$protected' branch"
+      exit 1
+    fi
+  done
+}
+
+if [ "$enableprotectedbranches" == "true" ]
+then
+	ensureNotOnProtectedBranch
 fi
 
 # If there are whitespace errors, print the offending file names and fail.
